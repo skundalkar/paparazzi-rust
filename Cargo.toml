@@ -3,6 +3,7 @@ members = [
   "crates/pprz-protocol",
   "crates/pprz-config",
   "crates/pprz-math",
+  "crates/pprz-messages",
   "crates/pprz-sim",
 ]
 resolver = "2"

@@ -38,6 +38,12 @@ Replay a recorded PPRZ v1 byte stream entirely offline:
 cargo run -p pprz-sim --bin pprz-replay -- path/to/recording.bin
 ```
 
+Decode a recording against an upstream telemetry dictionary:
+
+```sh
+cargo run -p pprz-sim --bin pprz-decode -- path/to/recording.bin path/to/messages.xml
+```
+
 ## License and attribution
 
 This project is licensed under GPL-2.0-only. Paparazzi UAS is a separate GPL-2.0 project; see [NOTICE](NOTICE) for attribution. This project is not affiliated with or endorsed by the Paparazzi UAS project.

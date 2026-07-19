@@ -20,6 +20,14 @@ name = "pprz-math"
 version = "0.1.0"
 
 [[package]]
+name = "pprz-messages"
+version = "0.1.0"
+dependencies = [
+ "pprz-protocol",
+ "quick-xml",
+]
+
+[[package]]
 name = "pprz-protocol"
 version = "0.1.0"
 
@@ -27,6 +35,7 @@ version = "0.1.0"
 name = "pprz-sim"
 version = "0.1.0"
 dependencies = [
+ "pprz-messages",
  "pprz-protocol",
 ]
 

@@ -43,3 +43,18 @@ Rust parser reads the airframe name, the first firmware declaration, its
 declared targets (for example, `ap`/`bebop` and `nps`/`pc`), and firmware-level
 module and define declarations. It does not yet evaluate sections,
 target-specific declarations, or command laws.
+
+## Message dictionary subset
+
+The third migration target is Paparazzi's XML message-dictionary shape. The
+Rust `pprz-messages` crate parses one named class, validates scalar and
+variable-array layouts, and decodes the supported primitive values from an
+offline PPRZ frame. Its initial schema reference is
+`sw/logalizer/matlab_log/messages.xml` at the pinned commit.
+
+That dictionary is historical and does **not** fully describe the separately
+recorded `sw/misc/log_parser/pprz.bin`: 42 of 941 transport-valid frames decode
+under it. The remaining length mismatches are retained as a compatibility gap,
+not treated as malformed transport data. A matching dictionary or generated
+message artifacts must be pinned before those payloads can be claimed typed
+compatible.
