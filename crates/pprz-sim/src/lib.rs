@@ -14,6 +14,38 @@ pub struct ReplayReport {
     pub rejected_frames: usize,
 }
 
+/// The count of frames for one aircraft/message identifier pair.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct MessageCount {
+    /// The aircraft identifier in the counted frames.
+    pub aircraft_id: u8,
+    /// The message identifier in the counted frames.
+    pub message_id: u8,
+    /// How many matching frames were accepted.
+    pub count: usize,
+}
+
+impl ReplayReport {
+    /// Groups accepted frames by aircraft and message identifier in stable order.
+    #[must_use]
+    pub fn message_counts(&self) -> Vec<MessageCount> {
+        let mut counts = std::collections::BTreeMap::new();
+        for frame in &self.frames {
+            *counts
+                .entry((frame.aircraft_id, frame.message_id))
+                .or_insert(0_usize) += 1;
+        }
+        counts
+            .into_iter()
+            .map(|((aircraft_id, message_id), count)| MessageCount {
+                aircraft_id,
+                message_id,
+                count,
+            })
+            .collect()
+    }
+}
+
 /// Decodes a recorded PPRZ byte stream without opening any device or network.
 #[must_use]
 pub fn replay(bytes: impl IntoIterator<Item = u8>) -> ReplayReport {
@@ -41,7 +73,7 @@ pub fn frame_count(frames: &[Frame]) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use super::{frame_count, replay};
+    use super::{MessageCount, frame_count, replay};
     use pprz_protocol::Frame;
 
     #[test]
@@ -60,5 +92,31 @@ mod tests {
         let report = replay(captured);
         assert_eq!(report.frames, vec![Frame::new(1, 2, [3])]);
         assert_eq!(report.rejected_frames, 1);
+    }
+
+    #[test]
+    fn groups_replayed_frames_by_message() {
+        let bytes = [
+            Frame::new(2, 5, []).encode().expect("frame encodes"),
+            Frame::new(1, 9, []).encode().expect("frame encodes"),
+            Frame::new(2, 5, [3]).encode().expect("frame encodes"),
+        ]
+        .concat();
+        let report = replay(bytes);
+        assert_eq!(
+            report.message_counts(),
+            vec![
+                MessageCount {
+                    aircraft_id: 1,
+                    message_id: 9,
+                    count: 1,
+                },
+                MessageCount {
+                    aircraft_id: 2,
+                    message_id: 5,
+                    count: 2,
+                },
+            ]
+        );
     }
 }

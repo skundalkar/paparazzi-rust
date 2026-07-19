@@ -36,8 +36,8 @@ impl Frame {
     /// Serializes this frame using the PPRZ v1 transport wire format.
     ///
     /// The checksum is the two-byte Fletcher-style checksum used by Paparazzi:
-    /// both accumulators start at `STX` and consume every byte through the
-    /// payload, excluding the two checksum bytes.
+    /// both accumulators start at zero and consume the length, aircraft ID,
+    /// message ID, and payload, excluding `STX` and the checksum bytes.
     ///
     /// # Errors
     ///
@@ -150,8 +150,8 @@ impl Decoder {
 }
 
 fn checksum(bytes: &[u8]) -> (u8, u8) {
-    let mut checksum_a = STX;
-    let mut checksum_b = STX;
+    let mut checksum_a = 0_u8;
+    let mut checksum_b = 0_u8;
     for byte in bytes.iter().skip(1) {
         checksum_a = checksum_a.wrapping_add(*byte);
         checksum_b = checksum_b.wrapping_add(checksum_a);
@@ -166,18 +166,28 @@ mod tests {
     #[test]
     fn encodes_reference_frame() {
         let frame = Frame::new(42, 7, [1, 2]);
-        assert_eq!(frame.encode(), Ok(vec![STX, 8, 42, 7, 1, 2, 0xd5, 0x7f]));
+        assert_eq!(frame.encode(), Ok(vec![STX, 8, 42, 7, 1, 2, 0x3c, 0xe9]));
     }
 
     #[test]
     fn decodes_reference_frame_one_byte_at_a_time() {
         let mut decoder = Decoder::new();
-        let bytes = [STX, 8, 42, 7, 1, 2, 0xd5, 0x7f];
+        let bytes = [STX, 8, 42, 7, 1, 2, 0x3c, 0xe9];
         let mut output = None;
         for byte in bytes {
             output = decoder.push(byte).expect("reference frame is valid");
         }
         assert_eq!(output, Some(Frame::new(42, 7, [1, 2])));
+    }
+
+    #[test]
+    fn decodes_first_frame_from_upstream_pprz_recording() {
+        let bytes = [STX, 9, 61, 103, 2, 1, 35, 0xd3, 0x2e];
+        let mut decoder = Decoder::new();
+        let frame = bytes
+            .into_iter()
+            .find_map(|byte| decoder.push(byte).expect("captured frame is valid"));
+        assert_eq!(frame, Some(Frame::new(61, 103, [2, 1, 35])));
     }
 
     #[test]
@@ -187,7 +197,7 @@ mod tests {
             assert_eq!(decoder.push(byte), Ok(None));
         }
         let mut output = None;
-        for byte in [STX, 6, 3, 9, 0xab, 0x85] {
+        for byte in [STX, 6, 3, 9, 0x12, 0x21] {
             output = decoder.push(byte).expect("frame is valid");
         }
         assert_eq!(output, Some(Frame::new(3, 9, [])));
@@ -196,7 +206,7 @@ mod tests {
     #[test]
     fn rejects_corrupt_checksum_and_recovers() {
         let mut decoder = Decoder::new();
-        let corrupt = [STX, 6, 3, 9, 0xab, 0];
+        let corrupt = [STX, 6, 3, 9, 0x12, 0];
         for byte in corrupt.into_iter().take(NON_PAYLOAD_BYTES - 1) {
             assert_eq!(decoder.push(byte), Ok(None));
         }
