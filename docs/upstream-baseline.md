@@ -40,9 +40,9 @@ golden test without copying the recording into this repository.
 The second migration target is the airframe XML shape represented by
 `conf/airframes/examples/bebop.xml` at the same upstream commit. The initial
 Rust parser reads the airframe name, the first firmware declaration, its
-declared targets (for example, `ap`/`bebop` and `nps`/`pc`), and firmware-level
-module and define declarations. It does not yet evaluate sections,
-target-specific declarations, or command laws.
+declared targets (for example, `ap`/`bebop` and `nps`/`pc`), and firmware- and
+target-level module and define declarations. It does not yet evaluate sections
+or command laws.
 
 ## Message dictionary subset
 

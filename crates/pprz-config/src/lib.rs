@@ -64,6 +64,10 @@ pub struct Target {
     pub name: String,
     /// The board used by this target.
     pub board: String,
+    /// Modules that apply only while building this target.
+    pub modules: Vec<Module>,
+    /// Defines that apply only while building this target.
+    pub defines: Vec<Define>,
 }
 
 /// A firmware-level Paparazzi module declaration.
@@ -102,8 +106,8 @@ pub enum ParseError {
 /// Parses the initial compatibility subset of a Paparazzi airframe XML file.
 ///
 /// The initial subset intentionally reads the airframe name, the first firmware
-/// declaration, its targets, and firmware-level module and define declarations.
-/// Target-specific declarations and executable command laws remain future work.
+/// declaration, its targets, and firmware- and target-level module and define
+/// declarations. Sections and executable command laws remain future work.
 ///
 /// # Errors
 ///
@@ -142,8 +146,18 @@ pub fn parse_airframe(xml: &str) -> Result<Airframe, ParseError> {
                 b"module" if firmware_depth > 0 && target_depth == 0 => {
                     modules.push(parse_module(&element)?);
                 }
+                b"module" if firmware_depth > 0 && target_depth > 0 => {
+                    target_mut(&mut targets)?
+                        .modules
+                        .push(parse_module(&element)?);
+                }
                 b"define" if firmware_depth > 0 && target_depth == 0 => {
                     defines.push(parse_define(&element)?);
+                }
+                b"define" if firmware_depth > 0 && target_depth > 0 => {
+                    target_mut(&mut targets)?
+                        .defines
+                        .push(parse_define(&element)?);
                 }
                 _ => {}
             },
@@ -152,8 +166,18 @@ pub fn parse_airframe(xml: &str) -> Result<Airframe, ParseError> {
                 b"module" if firmware_depth > 0 && target_depth == 0 => {
                     modules.push(parse_module(&element)?);
                 }
+                b"module" if firmware_depth > 0 && target_depth > 0 => {
+                    target_mut(&mut targets)?
+                        .modules
+                        .push(parse_module(&element)?);
+                }
                 b"define" if firmware_depth > 0 && target_depth == 0 => {
                     defines.push(parse_define(&element)?);
+                }
+                b"define" if firmware_depth > 0 && target_depth > 0 => {
+                    target_mut(&mut targets)?
+                        .defines
+                        .push(parse_define(&element)?);
                 }
                 _ => {}
             },
@@ -194,7 +218,18 @@ fn parse_define(element: &quick_xml::events::BytesStart<'_>) -> Result<Define, P
 fn parse_target(element: &quick_xml::events::BytesStart<'_>) -> Result<Target, ParseError> {
     let name = attribute(element, b"name")?.ok_or(ParseError::MissingAttribute("name"))?;
     let board = attribute(element, b"board")?.ok_or(ParseError::MissingAttribute("board"))?;
-    Ok(Target { name, board })
+    Ok(Target {
+        name,
+        board,
+        modules: Vec::new(),
+        defines: Vec::new(),
+    })
+}
+
+fn target_mut(targets: &mut [Target]) -> Result<&mut Target, ParseError> {
+    targets
+        .last_mut()
+        .ok_or(ParseError::MissingAttribute("target"))
 }
 
 fn attribute(
@@ -245,10 +280,14 @@ mod tests {
                 Target {
                     name: "ap".into(),
                     board: "bebop".into(),
+                    modules: Vec::new(),
+                    defines: Vec::new(),
                 },
                 Target {
                     name: "nps".into(),
                     board: "pc".into(),
+                    modules: Vec::new(),
+                    defines: Vec::new(),
                 },
             ]
         );
@@ -278,7 +317,7 @@ mod tests {
     }
 
     #[test]
-    fn excludes_target_specific_declarations() {
+    fn parses_target_specific_declarations() {
         let xml = r#"
             <airframe name="test">
               <firmware name="rotorcraft">
@@ -291,5 +330,7 @@ mod tests {
         let airframe = parse_airframe(xml).expect("fixture is valid");
         assert_eq!(airframe.firmware.modules.len(), 1);
         assert_eq!(airframe.firmware.modules[0].name, "telemetry");
+        assert_eq!(airframe.firmware.targets[0].modules.len(), 1);
+        assert_eq!(airframe.firmware.targets[0].modules[0].name, "fdm");
     }
 }
