@@ -48,13 +48,15 @@ fn main() -> ExitCode {
 
     let report = replay(bytes);
     let mut decoded_by_name = BTreeMap::new();
-    let mut unknown = 0_usize;
-    let mut malformed = 0_usize;
+    let mut unknown_by_id = BTreeMap::new();
+    let mut malformed_by_id = BTreeMap::new();
     for frame in &report.frames {
         match dictionary.decode(frame) {
             Ok(message) => *decoded_by_name.entry(message.name).or_insert(0_usize) += 1,
-            Err(pprz_messages::DecodeError::UnknownMessage(_)) => unknown += 1,
-            Err(_) => malformed += 1,
+            Err(pprz_messages::DecodeError::UnknownMessage(id)) => {
+                *unknown_by_id.entry(id).or_insert(0_usize) += 1;
+            }
+            Err(_) => *malformed_by_id.entry(frame.message_id).or_insert(0_usize) += 1,
         }
     }
     println!("transport accepted: {}", report.frames.len());
@@ -63,10 +65,22 @@ fn main() -> ExitCode {
         "dictionary decoded: {}",
         decoded_by_name.values().sum::<usize>()
     );
-    println!("dictionary unknown: {unknown}");
-    println!("dictionary malformed: {malformed}");
+    println!(
+        "dictionary unknown: {}",
+        unknown_by_id.values().sum::<usize>()
+    );
+    println!(
+        "dictionary malformed: {}",
+        malformed_by_id.values().sum::<usize>()
+    );
     for (name, count) in decoded_by_name {
         println!("{name}: {count}");
+    }
+    for (id, count) in unknown_by_id {
+        println!("unknown message {id}: {count}");
+    }
+    for (id, count) in malformed_by_id {
+        println!("schema mismatch for message {id}: {count}");
     }
     ExitCode::SUCCESS
 }
