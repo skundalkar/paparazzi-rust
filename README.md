@@ -18,6 +18,7 @@ It is **not flight-control software** and must not be used to control real aircr
 `paparazzi-rust` is an independent, clean Rust implementation. It will use public Paparazzi documentation, configuration files, protocol definitions, and behavior captured from simulation as compatibility references. Each migrated feature must have a documented upstream baseline and automated equivalence tests.
 
 See [the architecture](docs/architecture.md), [compatibility policy](docs/compatibility.md), and [safety scope](docs/safety-scope.md).
+The release boundary and verification gate are in [the v1.0 definition of done](docs/definition-of-done.md).
 
 The first migrated component is an offline PPRZ v1 transport encoder/decoder.
 Its reference baseline and wire-format evidence are recorded in
