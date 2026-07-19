@@ -19,6 +19,9 @@ It is **not flight-control software** and must not be used to control real aircr
 
 See [the architecture](docs/architecture.md), [compatibility policy](docs/compatibility.md), and [safety scope](docs/safety-scope.md).
 The release boundary and verification gate are in [the v1.0 definition of done](docs/definition-of-done.md).
+For the project model, diagrams, requirements, migration phases, and current
+feature status, see the [project brief](docs/project-brief.md),
+[migration plan](docs/migration-plan.md), and [progress report](docs/progress-report.md).
 
 The first migrated component is an offline PPRZ v1 transport encoder/decoder.
 Its reference baseline and wire-format evidence are recorded in
