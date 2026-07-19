@@ -18,6 +18,9 @@ mod tests {
 
     #[test]
     fn counts_replayed_frames() {
-        assert_eq!(frame_count(&[Frame::new(1, []), Frame::new(2, [])]), 2);
+        assert_eq!(
+            frame_count(&[Frame::new(1, 1, []), Frame::new(2, 2, [])]),
+            2
+        );
     }
 }

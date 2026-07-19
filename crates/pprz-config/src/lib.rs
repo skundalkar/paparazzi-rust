@@ -6,6 +6,11 @@ pub struct AirframeId(String);
 
 impl AirframeId {
     /// Validates and creates a non-empty airframe identifier.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConfigError::EmptyAirframeId`] when `value` contains no
+    /// visible characters.
     pub fn new(value: impl Into<String>) -> Result<Self, ConfigError> {
         let value = value.into();
         if value.trim().is_empty() {
