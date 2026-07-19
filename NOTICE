@@ -1,0 +1,7 @@
+paparazzi-rust is an independent Rust reimplementation project.
+
+It takes behavioral and interface compatibility goals from Paparazzi UAS:
+https://github.com/paparazzi/paparazzi
+
+Paparazzi UAS is a separate project licensed under GPL-2.0. This repository
+is not affiliated with or endorsed by the Paparazzi UAS project.

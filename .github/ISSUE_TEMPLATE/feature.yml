@@ -1,0 +1,23 @@
+name: Compatibility feature
+description: Propose a measured Rust compatibility increment.
+title: "compat: "
+labels: [compatibility]
+body:
+  - type: textarea
+    attributes:
+      label: Upstream reference
+      description: Paparazzi tag, commit, files, and public behavior.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Compatibility evidence
+      description: Fixtures, captures, differential tests, and tolerances.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Safety impact
+      description: Explain why this change remains simulation-safe.
+    validations:
+      required: true

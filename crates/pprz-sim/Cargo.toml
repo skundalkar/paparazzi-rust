@@ -1,0 +1,13 @@
+[package]
+name = "pprz-sim"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+pprz-protocol = { path = "../pprz-protocol" }
+
+[lints]
+workspace = true
