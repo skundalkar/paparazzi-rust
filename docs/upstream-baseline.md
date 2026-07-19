@@ -47,14 +47,13 @@ or command laws.
 ## Message dictionary subset
 
 The third migration target is Paparazzi's XML message-dictionary shape. The
-Rust `pprz-messages` crate parses one named class, validates scalar and
-variable-array layouts, and decodes the supported primitive values from an
-offline PPRZ frame. Its initial schema reference is
-`sw/logalizer/matlab_log/messages.xml` at the pinned commit.
+Rust `pprz-messages` crate parses `class` and historical `msg_class` forms,
+validates scalar and count-prefixed variable-array layouts, and decodes the
+supported primitive values from an offline PPRZ frame.
 
-That dictionary is historical and does **not** fully describe the separately
-recorded `sw/misc/log_parser/pprz.bin`: 42 of 941 transport-valid frames decode
-under it. The remaining length mismatches are retained as a compatibility gap,
-not treated as malformed transport data. A matching dictionary or generated
-message artifacts must be pinned before those payloads can be claimed typed
-compatible.
+The recording `sw/misc/log_parser/pprz.bin` originated in upstream commit
+`728c36e2a694eaab9c1335f37e6907f40b8d27db` (2009-05-13). Its matching
+`conf/messages.xml` is the message-schema baseline. The Rust decoder accepts
+and decodes all 941 transport-valid frames using that exact dictionary, with
+zero unknown or malformed payloads. The dictionary itself is not copied here;
+the commit and source path are the reproducible provenance reference.

@@ -29,8 +29,8 @@ impl MessageDictionary {
     /// Decodes one frame using this dictionary.
     ///
     /// Numeric values use Paparazzi's little-endian wire representation.
-    /// Variable-length array fields consume the remaining payload and must be
-    /// the final field in a message definition.
+    /// Variable-length array fields contain a one-byte element count followed
+    /// by their values and must be the final field in a message definition.
     ///
     /// # Errors
     ///
@@ -97,14 +97,24 @@ pub enum FieldKind {
     U32,
     /// A signed 32-bit little-endian integer.
     I32,
+    /// An unsigned 64-bit little-endian integer.
+    U64,
     /// An IEEE-754 32-bit little-endian float.
     F32,
-    /// A variable-length byte sequence.
+    /// An IEEE-754 64-bit little-endian float.
+    F64,
+    /// A count-prefixed variable-length byte sequence.
     U8Array,
-    /// A variable-length signed 16-bit integer sequence.
+    /// A count-prefixed variable-length signed 16-bit integer sequence.
     I16Array,
-    /// A variable-length unsigned 16-bit integer sequence.
+    /// A count-prefixed variable-length unsigned 16-bit integer sequence.
     U16Array,
+    /// A count-prefixed variable-length signed 8-bit integer sequence.
+    I8Array,
+    /// A count-prefixed variable-length unsigned 32-bit integer sequence.
+    U32Array,
+    /// A count-prefixed variable-length 32-bit floating-point sequence.
+    F32Array,
 }
 
 /// A message decoded from a PPRZ transport frame.
@@ -144,14 +154,24 @@ pub enum FieldValue {
     U32(u32),
     /// Signed 32-bit value.
     I32(i32),
+    /// Unsigned 64-bit value.
+    U64(u64),
     /// 32-bit floating-point value.
     F32(f32),
-    /// Variable-length byte sequence.
+    /// 64-bit floating-point value.
+    F64(f64),
+    /// Count-prefixed variable-length byte sequence.
     U8Array(Vec<u8>),
-    /// Variable-length signed 16-bit sequence.
+    /// Count-prefixed variable-length signed 16-bit sequence.
     I16Array(Vec<i16>),
-    /// Variable-length unsigned 16-bit sequence.
+    /// Count-prefixed variable-length unsigned 16-bit sequence.
     U16Array(Vec<u16>),
+    /// Count-prefixed variable-length signed 8-bit sequence.
+    I8Array(Vec<i8>),
+    /// Count-prefixed variable-length unsigned 32-bit sequence.
+    U32Array(Vec<u32>),
+    /// Count-prefixed variable-length 32-bit floating-point sequence.
+    F32Array(Vec<f32>),
 }
 
 /// Errors raised while parsing a message dictionary.
@@ -187,7 +207,7 @@ pub enum DecodeError {
     MisalignedArray {
         /// Width in bytes of one array element.
         element_width: usize,
-        /// Bytes available for the variable-length array.
+        /// Bytes available for the count-prefixed array.
         available: usize,
     },
     /// Decoding known fields left bytes unconsumed.
@@ -214,7 +234,7 @@ pub fn parse_dictionary(xml: &str, class_name: &str) -> Result<MessageDictionary
             .read_event_into(&mut buffer)
             .map_err(|error| DictionaryError::Xml(error.to_string()))?
         {
-            Event::Start(element) if element.name().as_ref() == b"class" => {
+            Event::Start(element) if is_class_tag(element.name().as_ref()) => {
                 in_class = attribute(&element, b"name")?.as_deref() == Some(class_name);
                 found_class |= in_class;
             }
@@ -224,7 +244,9 @@ pub fn parse_dictionary(xml: &str, class_name: &str) -> Result<MessageDictionary
             Event::Empty(element) if in_class && element.name().as_ref() == b"message" => {
                 messages.push(parse_message(&element)?);
             }
-            Event::Empty(element) if in_class && element.name().as_ref() == b"field" => {
+            Event::Start(element) | Event::Empty(element)
+                if in_class && element.name().as_ref() == b"field" =>
+            {
                 if let Some(message) = current.as_mut() {
                     message.fields.push(parse_field(&element)?);
                 }
@@ -235,7 +257,7 @@ pub fn parse_dictionary(xml: &str, class_name: &str) -> Result<MessageDictionary
                     messages.push(message);
                 }
             }
-            Event::End(element) if element.name().as_ref() == b"class" => in_class = false,
+            Event::End(element) if is_class_tag(element.name().as_ref()) => in_class = false,
             Event::Eof => break,
             _ => {}
         }
@@ -275,10 +297,15 @@ fn parse_field(
         "int16" => FieldKind::I16,
         "uint32" => FieldKind::U32,
         "int32" => FieldKind::I32,
+        "uint64" => FieldKind::U64,
         "float" => FieldKind::F32,
-        "uint8[]" => FieldKind::U8Array,
+        "double" => FieldKind::F64,
+        "uint8[]" | "char[]" | "string" => FieldKind::U8Array,
         "int16[]" => FieldKind::I16Array,
         "uint16[]" => FieldKind::U16Array,
+        "int8[]" => FieldKind::I8Array,
+        "uint32[]" => FieldKind::U32Array,
+        "float[]" => FieldKind::F32Array,
         _ => return Err(DictionaryError::UnsupportedFieldType(field_type)),
     };
     Ok(FieldDefinition { name, kind })
@@ -290,14 +317,27 @@ fn validate_message(message: &MessageDefinition) -> Result<(), DictionaryError> 
         .iter()
         .take(message.fields.len().saturating_sub(1))
     {
-        if matches!(
-            field.kind,
-            FieldKind::U8Array | FieldKind::I16Array | FieldKind::U16Array
-        ) {
+        if is_variable_array(field.kind) {
             return Err(DictionaryError::VariableArrayNotLast(message.name.clone()));
         }
     }
     Ok(())
+}
+
+fn is_class_tag(name: &[u8]) -> bool {
+    name == b"class" || name == b"msg_class"
+}
+
+fn is_variable_array(kind: FieldKind) -> bool {
+    matches!(
+        kind,
+        FieldKind::U8Array
+            | FieldKind::I16Array
+            | FieldKind::U16Array
+            | FieldKind::I8Array
+            | FieldKind::U32Array
+            | FieldKind::F32Array
+    )
 }
 
 fn parse_id(text: &str) -> Result<u8, DictionaryError> {
@@ -343,8 +383,14 @@ fn decode_value(
         FieldKind::I32 => Ok(FieldValue::I32(i32::from_le_bytes(
             take(bytes, 4)?.try_into().expect("width checked"),
         ))),
+        FieldKind::U64 => Ok(FieldValue::U64(u64::from_le_bytes(
+            take(bytes, 8)?.try_into().expect("width checked"),
+        ))),
         FieldKind::F32 => Ok(FieldValue::F32(f32::from_le_bytes(
             take(bytes, 4)?.try_into().expect("width checked"),
+        ))),
+        FieldKind::F64 => Ok(FieldValue::F64(f64::from_le_bytes(
+            take(bytes, 8)?.try_into().expect("width checked"),
         ))),
         FieldKind::U8Array => Ok(FieldValue::U8Array(take_array(bytes, 1, is_last)?.to_vec())),
         FieldKind::I16Array => Ok(FieldValue::I16Array(
@@ -357,6 +403,24 @@ fn decode_value(
             take_array(bytes, 2, is_last)?
                 .chunks_exact(2)
                 .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
+                .collect(),
+        )),
+        FieldKind::I8Array => Ok(FieldValue::I8Array(
+            take_array(bytes, 1, is_last)?
+                .iter()
+                .map(|byte| i8::from_le_bytes([*byte]))
+                .collect(),
+        )),
+        FieldKind::U32Array => Ok(FieldValue::U32Array(
+            take_array(bytes, 4, is_last)?
+                .chunks_exact(4)
+                .map(|chunk| u32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
+                .collect(),
+        )),
+        FieldKind::F32Array => Ok(FieldValue::F32Array(
+            take_array(bytes, 4, is_last)?
+                .chunks_exact(4)
+                .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
                 .collect(),
         )),
     }
@@ -382,15 +446,15 @@ fn take_array<'a>(
     if !is_last {
         return Err(DecodeError::TrailingBytes(bytes.len()));
     }
-    if bytes.len() % width != 0 {
+    let count = usize::from(take(bytes, 1)?[0]);
+    let expected = count.saturating_mul(width);
+    if bytes.len() < expected {
         return Err(DecodeError::MisalignedArray {
             element_width: width,
             available: bytes.len(),
         });
     }
-    let value = *bytes;
-    *bytes = &[];
-    Ok(value)
+    take(bytes, expected)
 }
 
 #[cfg(test)]
@@ -421,9 +485,30 @@ mod tests {
     fn decodes_variable_array_at_end() {
         let dictionary = parse_dictionary(DICTIONARY, "telemetry").expect("dictionary parses");
         let message = dictionary
-            .decode(&Frame::new(61, 102, [1, 0, 0xfe, 0xff]))
+            .decode(&Frame::new(61, 102, [2, 1, 0, 0xfe, 0xff]))
             .expect("payload decodes");
         assert_eq!(message.fields[0].value, FieldValue::I16Array(vec![1, -2]));
+    }
+
+    #[test]
+    fn parses_field_with_descriptive_text() {
+        let xml = r#"<protocol><msg_class name="telemetry"><message name="ALIVE" id="2"><field name="value" type="uint16">a description</field></message></msg_class></protocol>"#;
+        let dictionary = parse_dictionary(xml, "telemetry").expect("dictionary parses");
+        let message = dictionary
+            .decode(&Frame::new(61, 2, [0x34, 0x12]))
+            .expect("payload decodes");
+        assert_eq!(message.fields[0].value, FieldValue::U16(0x1234));
+    }
+
+    #[test]
+    fn decodes_first_frame_from_pinned_legacy_recording() {
+        let xml = r#"<protocol><msg_class name="telemetry"><message name="FBW_STATUS" id="103"><field name="rc_status" type="uint8"/><field name="mode" type="uint8"/><field name="vsupply" type="uint8"/></message></msg_class></protocol>"#;
+        let dictionary = parse_dictionary(xml, "telemetry").expect("dictionary parses");
+        let message = dictionary
+            .decode(&Frame::new(61, 103, [2, 1, 35]))
+            .expect("captured payload decodes");
+        assert_eq!(message.name, "FBW_STATUS");
+        assert_eq!(message.fields[2].value, FieldValue::U8(35));
     }
 
     #[test]
