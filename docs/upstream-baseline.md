@@ -29,3 +29,11 @@ reference frame used by the Rust golden tests is:
 
 This milestone is limited to offline encoding, decoding, and recovery from a
 malformed frame. It has no transport, hardware, or actuator interface.
+
+## Airframe configuration subset
+
+The second migration target is the airframe XML shape represented by
+`conf/airframes/examples/bebop.xml` at the same upstream commit. The initial
+Rust parser reads only the airframe name, the first firmware declaration, and
+its declared targets (for example, `ap`/`bebop` and `nps`/`pc`). It does not
+yet evaluate defines, modules, sections, or command laws.
