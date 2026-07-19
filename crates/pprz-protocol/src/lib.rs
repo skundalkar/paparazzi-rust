@@ -191,6 +191,27 @@ mod tests {
     }
 
     #[test]
+    fn round_trips_every_legal_payload_length() {
+        for payload_length in 0..=(u8::MAX as usize - NON_PAYLOAD_BYTES) {
+            let payload = (0..payload_length)
+                .map(|index| u8::try_from(index).expect("length is bounded"))
+                .collect::<Vec<_>>();
+            let expected = Frame::new(17, 42, payload);
+            let mut decoder = Decoder::new();
+            let decoded_frame = expected
+                .encode()
+                .expect("legal payload encodes")
+                .into_iter()
+                .find_map(|byte| decoder.push(byte).expect("encoded frame is valid"));
+            assert_eq!(
+                decoded_frame,
+                Some(expected),
+                "payload length {payload_length}"
+            );
+        }
+    }
+
+    #[test]
     fn ignores_noise_before_a_frame() {
         let mut decoder = Decoder::new();
         for byte in [0, 1, 2] {

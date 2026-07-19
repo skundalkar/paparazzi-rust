@@ -12,6 +12,6 @@ and an explicit compatibility state.
 | Sections, target-specific declarations, command laws | Deferred | Not exposed as supported API |
 | Hardware I/O, actuator output, firmware flashing | Excluded | No interfaces or dependencies in v1 |
 
-The release gate requires `cargo fmt --check`, strict Clippy, all unit/property
-tests, documented upstream commit provenance, and a published compatibility
-matrix like this one.
+The release gate requires `cargo fmt --check`, strict Clippy, all unit and
+exhaustive protocol tests, documented upstream commit provenance, and a
+published compatibility matrix like this one.
